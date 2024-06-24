@@ -7,6 +7,7 @@ class Server:
         self.logger = logger
         self.db_manager = DatabaseManager()
         self.clients = {}
+        self.pending_updates = {}
         self.app = Flask(__name__)
         self.setup_routes()
 
@@ -41,12 +42,18 @@ class Server:
         if group_id in self.clients:
             for client in self.clients[group_id]:
                 if client != sender_ip:
-                    # In a real implementation, you'd queue this for each client
-                    pass
+                    if group_id not in self.pending_updates:
+                        self.pending_updates[group_id] = {}
+                    self.pending_updates[group_id][client] = content
         return jsonify({"status": "updated"}), 200
 
     def handle_poll(self, group_id):
-        # In a real implementation, this would wait for new content or timeout
+        client_ip = request.remote_addr
+        if group_id in self.pending_updates and client_ip in self.pending_updates[group_id]:
+            content = self.pending_updates[group_id].pop(client_ip)
+            if not self.pending_updates[group_id]:
+                del self.pending_updates[group_id]
+            return jsonify({"content": content}), 200
         return jsonify({"content": None}), 200
 
 def create_server(logger):
