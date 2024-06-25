@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        type: choice
+        description: 'Type of release'
+        required: true
+        options:
+        - patch
+        - minor
+        - major
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install semver
+
+    - name: Determine new version
+      id: version
+      run: |
+        current_version=$(python -c "import uniclip; print(uniclip.__version__)")
+        new_version=$(python -c "import semver; print(str(semver.VersionInfo.parse('$current_version').bump_${{ github.event.inputs.release_type }}()))")
+        echo "New version will be: $new_version"
+        echo "new_version=$new_version" >> $GITHUB_OUTPUT
+        
+    - name: Update version
+      run: |
+        sed -i "s/__version__ = .*/__version__ = \"${{ steps.version.outputs.new_version }}\"/" uniclip/__init__.py
+        
+    - name: Commit version update
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add uniclip/__init__.py
+        git commit -m "Bump ${{ github.event.inputs.release_type }} version to ${{ steps.version.outputs.new_version }}"
+        
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.version.outputs.new_version }}
+        release_name: Release ${{ steps.version.outputs.new_version }}
+        draft: false
+        prerelease: false
+        
+    - name: Update README
+      run: |
+        sed -i "s/Current version: .*/Current version: ${{ steps.version.outputs.new_version }}/" README.md
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add README.md
+        git commit -m "Update version in README to ${{ steps.version.outputs.new_version }}"
+        git push
