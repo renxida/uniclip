@@ -15,17 +15,17 @@ class DatabaseManager:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 group_id TEXT,
                 content TEXT,
-                sender_ip TEXT,
+                client_id TEXT,
                 timestamp DATETIME
             )
         ''')
         self.conn.commit()
 
-    def record_message(self, group_id, content, sender_ip):
+    def record_message(self, group_id, content, client_id):
         self.cursor.execute('''
-            INSERT INTO messages (group_id, content, sender_ip, timestamp)
+            INSERT INTO messages (group_id, content, client_id, timestamp)
             VALUES (?, ?, ?, ?)
-        ''', (group_id, content, sender_ip, datetime.now()))
+        ''', (group_id, content, client_id, datetime.now()))
         self.conn.commit()
 
     def get_messages(self, group_id, limit=10):
