@@ -1,11 +1,10 @@
 import argparse
 import logging
-from server import create_server
-from client import Client
-import json
+from .server import create_server
+from .client import Client
 import os
 import sys
-from installer import install_client, install_server
+from .installer import install_client, install_server
 
 import yaml
 from dataclasses import dataclass, asdict
@@ -33,7 +32,6 @@ class ConfigManager:
         os.makedirs(self.config_dir, exist_ok=True)
         with open(self.config_path, 'w') as f:
             yaml.dump(asdict(config), f)
-
 
 class UniclipApp:
     def __init__(self):
@@ -88,6 +86,9 @@ class UniclipApp:
         elif args.mode == 'install':
             install_client()
 
-if __name__ == "__main__":
+def main():
     app = UniclipApp()
     app.run()
+
+if __name__ == "__main__":
+    main()
