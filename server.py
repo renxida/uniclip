@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from waitress import serve
-from database_manager import DatabaseManager
 import uvicorn
 
 class RegisterData(BaseModel):
