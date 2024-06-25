@@ -4,6 +4,8 @@ from server import create_server
 from client import Client
 import json
 import os
+import sys
+from installer import install_client, install_server
 
 class ConfigManager:
     def __init__(self, config_path='~/.uniclip'):
@@ -38,21 +40,29 @@ class UniclipApp:
 
         # Server subcommand
         server_parser = subparsers.add_parser('server', help='Run in server mode')
+        server_subparsers = server_parser.add_subparsers(dest='server_command', help='Server commands')
+        server_subparsers.add_parser('install', help='Install server as a systemd service')
+
+        # Install subcommand
+        subparsers.add_parser('install', help='Install client as a user-mode systemd service')
 
         # Parse arguments
-        args, unknown = parser.parse_known_args()
+        args = parser.parse_args()
         
         # If no subcommand was specified, default to 'client'
         if not args.mode:
             args.mode = 'client'
             # Re-parse arguments as client
-            args = client_parser.parse_args(unknown)
+            args = client_parser.parse_args(sys.argv[1:])
 
         config = self.config_manager.load_config()
 
         if args.mode == 'server':
-            server = create_server(self.logger)
-            server.run()
+            if args.server_command == 'install':
+                install_server()
+            else:
+                server = create_server(self.logger)
+                server.run()
         elif args.mode == 'client':
             group_id = args.group or config.get('group_id')
             server_address = args.server or config.get('server_address')
@@ -61,6 +71,8 @@ class UniclipApp:
                 return
             client = Client(group_id, server_address, self.logger, args.headless)
             client.run()
+        elif args.mode == 'install':
+            install_client()
 
 if __name__ == "__main__":
     app = UniclipApp()
