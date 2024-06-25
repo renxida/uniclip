@@ -33,7 +33,16 @@ jobs:
     - name: Determine new version
       id: version
       run: |
-        current_version=$(grep -oP "__version__ = '\K[^']+" uniclip/__init__.py)
+        current_version=$(python -c "
+        import re
+        with open('uniclip/__init__.py', 'r') as f:
+            content = f.read()
+        match = re.search(r\"__version__\s*=\s*['\\\"]([^'\\\"]*)['\\\"]\", content)
+        if match:
+            print(match.group(1))
+        else:
+            print('0.0.0')  # fallback version
+        ")
         new_version=$(python -c "import semver; print(str(semver.VersionInfo.parse('$current_version').bump_${{ github.event.inputs.release_type }}()))")
         echo "Current version: $current_version"
         echo "New version will be: $new_version"
@@ -41,7 +50,7 @@ jobs:
         
     - name: Update version
       run: |
-        sed -i "s/__version__ = .*/__version__ = '${{ steps.version.outputs.new_version }}'/" uniclip/__init__.py
+        sed -i "s/__version__\s*=\s*['\"].*['\"]/__version__ = '${{ steps.version.outputs.new_version }}'/" uniclip/__init__.py
         
     - name: Commit version update
       run: |
