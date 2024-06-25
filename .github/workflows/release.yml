@@ -46,7 +46,7 @@ jobs:
         new_version=$(python -c "import semver; print(str(semver.VersionInfo.parse('$current_version').bump_${{ github.event.inputs.release_type }}()))")
         echo "Current version: $current_version"
         echo "New version will be: $new_version"
-        echo "new_version=$new_version" >> $GITHUB_OUTPUT
+        echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
         
     - name: Update version
       run: |
