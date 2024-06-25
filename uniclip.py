@@ -1,13 +1,14 @@
 import argparse
 from config_manager import ConfigManager
-from logger import Logger
+import logging
 from server import create_server
 from client import Client
 
 class UniclipApp:
     def __init__(self):
         self.config_manager = ConfigManager()
-        self.logger = Logger()
+        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+        self.logger = logging.getLogger('Uniclip')
 
     def run(self):
         # Change: Modified argument parsing to make client mode default
