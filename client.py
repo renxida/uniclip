@@ -5,17 +5,18 @@ import requests
 import pyperclip
 import socket
 import uuid
-
 class Client:
-    def __init__(self, group_id, server_address, logger):
+    # Change: Added force_headless parameter to __init__
+    def __init__(self, group_id, server_address, logger, force_headless=False):
         self.group_id = group_id
         self.server_address = server_address
         self.logger = logger
         self.running = True
         self.clipboard_file = '/tmp/uniclip'
+        self.force_headless = force_headless
         self.headless = self._detect_headless()
         self.client_id = self._generate_client_id()
-        self.logger.debug(f"Client initialized with group_id: {group_id}, server_address: {server_address}, client_id: {self.client_id}")
+        self.logger.debug(f"Client initialized with group_id: {group_id}, server_address: {server_address}, client_id: {self.client_id}, force_headless: {force_headless}")
 
     def _generate_client_id(self):
         hostname = socket.gethostname()
@@ -23,6 +24,10 @@ class Client:
         return f"{hostname}-{short_uuid}"
 
     def _detect_headless(self):
+        # Change: Use force_headless if set
+        if self.force_headless:
+            self.logger.info("Forced headless mode")
+            return True
         try:
             pyperclip.paste()
             self.logger.debug("Pyperclip successfully detected copy/paste mechanism")

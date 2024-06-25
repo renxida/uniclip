@@ -10,10 +10,13 @@ class UniclipApp:
         self.logger = Logger()
 
     def run(self):
+        # Change: Modified argument parsing to make client mode default
         parser = argparse.ArgumentParser(description="Uniclip Clipboard Sync")
-        parser.add_argument('mode', choices=['client', 'server'], help="Operating mode")
+        parser.add_argument('mode', nargs='?', default='client', choices=['client', 'server'], help="Operating mode (default: client)")
         parser.add_argument('--group', help="Group ID for the client")
         parser.add_argument('--server', help="Server address for the client")
+        # Change: Added --headless argument
+        parser.add_argument('--headless', action='store_true', help="Force headless mode for client")
         args = parser.parse_args()
 
         config = self.config_manager.load_config()
@@ -29,7 +32,8 @@ class UniclipApp:
                 self.logger.error("Group ID and server address are required for client mode")
                 return
 
-            client = Client(group_id, server_address, self.logger)
+            # Change: Pass headless argument to Client
+            client = Client(group_id, server_address, self.logger, args.headless)
             client.run()
         else:
             self.logger.error(f"Invalid mode: {args.mode}")
