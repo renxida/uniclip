@@ -7,19 +7,32 @@ import os
 import sys
 from installer import install_client, install_server
 
-class ConfigManager:
-    def __init__(self, config_path='~/.uniclip'):
-        self.config_path = os.path.expanduser(config_path)
+import yaml
+from dataclasses import dataclass, asdict
+from typing import Optional
 
-    def load_config(self):
+@dataclass
+class UniclipConfig:
+    group_id: Optional[str] = None
+    server_address: Optional[str] = None
+    headless: bool = False
+
+class ConfigManager:
+    def __init__(self, config_dir='~/.config/uniclip'):
+        self.config_dir = os.path.expanduser(config_dir)
+        self.config_path = os.path.join(self.config_dir, 'config.yaml')
+
+    def load_config(self) -> UniclipConfig:
         if os.path.exists(self.config_path):
             with open(self.config_path, 'r') as f:
-                return json.load(f)
-        return {}
+                config_dict = yaml.safe_load(f)
+                return UniclipConfig(**config_dict)
+        return UniclipConfig()
 
-    def save_config(self, config):
+    def save_config(self, config: UniclipConfig):
+        os.makedirs(self.config_dir, exist_ok=True)
         with open(self.config_path, 'w') as f:
-            json.dump(config, f, indent=2)
+            yaml.dump(asdict(config), f)
 
 
 class UniclipApp:
@@ -64,12 +77,13 @@ class UniclipApp:
                 server = create_server(self.logger)
                 server.run()
         elif args.mode == 'client':
-            group_id = args.group or config.get('group_id')
-            server_address = args.server or config.get('server_address')
+            group_id = args.group or config.group_id
+            server_address = args.server or config.server_address
+            headless = args.headless or config.headless
             if not group_id or not server_address:
                 self.logger.error("Group ID and server address are required for client mode")
                 return
-            client = Client(group_id, server_address, self.logger, args.headless)
+            client = Client(group_id, server_address, self.logger, headless)
             client.run()
         elif args.mode == 'install':
             install_client()

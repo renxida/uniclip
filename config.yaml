@@ -1,0 +1,11 @@
+# Example Uniclip configuration
+# Save this file as ~/.config/uniclip/config.yaml
+
+# Unique identifier for the group of devices that will share the clipboard
+group_id: example-group
+
+# Full address of the Uniclip server, including protocol and port
+server_address: http://server.example.com:2547
+
+# Set to true to force headless mode (useful for servers without a GUI)
+headless: false
