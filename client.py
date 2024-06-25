@@ -88,7 +88,8 @@ class Client:
             try:
                 response = requests.get(f"{self.server_address}/poll/{self.group_id}")
                 if response.status_code == 200:
-                    clipboard_content = response.json().get('content')
+                    data = response.json()
+                    clipboard_content = data.get('content')
                     if clipboard_content:
                         if self.headless:
                             self.update_clipboard_file(clipboard_content)
@@ -101,10 +102,10 @@ class Client:
                                 self.headless = True
                                 self.update_clipboard_file(clipboard_content)
                         self.logger.info("Received new clipboard content from server")
-                time.sleep(1)  # Poll every second
+                time.sleep(0.5)  # Poll every second
             except requests.RequestException as e:
                 self.logger.error(f"Error polling server: {e}")
-                time.sleep(5)  # Wait a bit longer before retrying after an error
+                time.sleep(5)  # Wait 
 
     def send_to_server(self, content):
         try:
