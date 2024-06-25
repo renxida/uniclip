@@ -11,14 +11,26 @@ class UniclipApp:
         self.logger = logging.getLogger('Uniclip')
 
     def run(self):
-        # Change: Modified argument parsing to make client mode default
         parser = argparse.ArgumentParser(description="Uniclip Clipboard Sync")
-        parser.add_argument('mode', nargs='?', default='client', choices=['client', 'server'], help="Operating mode (default: client)")
-        parser.add_argument('--group', help="Group ID for the client")
-        parser.add_argument('--server', help="Server address for the client")
-        # Change: Added --headless argument
-        parser.add_argument('--headless', action='store_true', help="Force headless mode for client")
-        args = parser.parse_args()
+        subparsers = parser.add_subparsers(dest='mode', help='Operating mode')
+
+        # Client parser (default)
+        client_parser = subparsers.add_parser('client', help='Run in client mode')
+        client_parser.add_argument('--group', help="Group ID for the client")
+        client_parser.add_argument('--server', help="Server address for the client")
+        client_parser.add_argument('--headless', action='store_true', help="Force headless mode for client")
+
+        # Server subcommand
+        server_parser = subparsers.add_parser('server', help='Run in server mode')
+
+        # Parse arguments
+        args, unknown = parser.parse_known_args()
+        
+        # If no subcommand was specified, default to 'client'
+        if not args.mode:
+            args.mode = 'client'
+            # Re-parse arguments as client
+            args = client_parser.parse_args(unknown)
 
         config = self.config_manager.load_config()
 
@@ -28,16 +40,11 @@ class UniclipApp:
         elif args.mode == 'client':
             group_id = args.group or config.get('group_id')
             server_address = args.server or config.get('server_address')
-
             if not group_id or not server_address:
                 self.logger.error("Group ID and server address are required for client mode")
                 return
-
-            # Change: Pass headless argument to Client
             client = Client(group_id, server_address, self.logger, args.headless)
             client.run()
-        else:
-            self.logger.error(f"Invalid mode: {args.mode}")
 
 if __name__ == "__main__":
     app = UniclipApp()
