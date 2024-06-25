@@ -3,6 +3,8 @@ import time
 import os
 import requests
 import pyperclip
+import socket
+import uuid
 
 class Client:
     def __init__(self, group_id, server_address, logger):
@@ -12,7 +14,13 @@ class Client:
         self.running = True
         self.clipboard_file = '/tmp/uniclip'
         self.headless = self._detect_headless()
-        self.logger.debug(f"Client initialized with group_id: {group_id}, server_address: {server_address}")
+        self.client_id = self._generate_client_id()
+        self.logger.debug(f"Client initialized with group_id: {group_id}, server_address: {server_address}, client_id: {self.client_id}")
+
+    def _generate_client_id(self):
+        hostname = socket.gethostname()
+        short_uuid = str(uuid.uuid4())[:4]
+        return f"{hostname}-{short_uuid}"
 
     def _detect_headless(self):
         try:
@@ -83,7 +91,8 @@ class Client:
         self.logger.debug(f"Attempting to register with server: {self.server_address}")
         try:
             response = requests.post(f"{self.server_address}/register", json={
-                "group_id": self.group_id
+                "group_id": self.group_id,
+                "client_id": self.client_id
             })
             if response.status_code == 200:
                 self.logger.info("Registered with server successfully")
@@ -98,8 +107,8 @@ class Client:
         self.logger.debug("Starting to poll server for updates")
         while self.running:
             try:
-                self.logger.debug(f"Polling server: {self.server_address}/poll/{self.group_id}")
-                response = requests.get(f"{self.server_address}/poll/{self.group_id}")
+                self.logger.debug(f"Polling server: {self.server_address}/poll/{self.group_id}/{self.client_id}")
+                response = requests.get(f"{self.server_address}/poll/{self.group_id}/{self.client_id}")
                 if response.status_code == 200:
                     data = response.json()
                     clipboard_content = data.get('content')
@@ -131,6 +140,7 @@ class Client:
         try:
             response = requests.post(f"{self.server_address}/update", json={
                 "group_id": self.group_id,
+                "client_id": self.client_id,
                 "content": content
             })
             if response.status_code == 200:
