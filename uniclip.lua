@@ -37,20 +37,35 @@ end
 
 function M.send_to_server(content)
   local group_id, server_address = load_config()
-  local body = vim.fn.json_encode({
-    group_id = group_id,
-    client_id = "neovim-client",
-    content = content
-  })
+
+  -- Create a temporary file
+  local temp_file = os.tmpname()
+  
+  -- Write the content to the temporary file
+  local f = io.open(temp_file, "w")
+  if not f then
+    print("Failed to create temporary file")
+    return
+  end
+  f:write(content)
+  f:close()
+
+  -- Prepare the curl command
   local curl_command = string.format(
-    "curl -s -X POST -H 'Content-Type: application/json' -d '%s' '%s/update'",
-    vim.fn.shellescape(body),
+    "curl -s -X POST -H 'Content-Type: application/json' -d '@%s' '%s/update'",
+    temp_file,
     server_address
   )
+
+  -- Execute the curl command
   local handle = io.popen(curl_command .. " 2>&1")
   local result = handle:read("*a")
   local success, exit_type, exit_code = handle:close()
   
+  -- Remove the temporary file
+  os.remove(temp_file)
+
+  -- Process the result
   if success then
     if result:match('"status":"updated"') then
       print("Sent update to server successfully")
@@ -62,9 +77,10 @@ function M.send_to_server(content)
     print("Command output: " .. result)
   end
   
-  -- Log the curl command for debugging
+  -- Log the curl command for debugging (without the file content)
   vim.fn.writefile({curl_command}, vim.fn.expand("~/.uniclip_debug.log"), "a")
 end
+
 
 
 function M.receive_from_server()
