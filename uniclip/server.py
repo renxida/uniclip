@@ -127,3 +127,16 @@ class Server:
 
 def create_server(logger):
     return Server(logger)
+
+if __name__ == "__main__":
+    import logging
+    logger = logging.getLogger("uniclip")
+    logger.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    server = create_server(logger)
+    server.run()

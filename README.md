@@ -8,11 +8,57 @@ Current version: 0.1.1
 
 ## Features
 
+- Easily deploy server with docker
 - Cross-device clipboard synchronization
-- Group-based sharing for team collaboration
 - Support for both headless and GUI environments
-- Easy to install and use
-- Secure communication between clients and server
+- NeoVim support with a single Lua file (that calls curl)
+
+## Quick start guide
+
+Run the following to set up a docker server:
+
+```bash
+git clone https://github.com/renxida/uniclip
+docker build -t uniclip-server .
+docker run  -p 8037:2547 --name uniclip-server uniclip-server
+```
+
+On your client, run:
+
+```bash
+pip install uniclip
+uniclip client --server http://server.example.com:8037
+```
+
+For neovim support client, run
+
+```bash
+# ensure curl is installed
+# if not, run `sudo apt install curl`
+git clone https://github.com/renxida/uniclip
+cd uniclip
+cp ./uniclip.lua ~/.config/nvim/lua
+cat <<- EOF > ~/.config/nvim/init.lua
+
+   local uniclip = require('uniclip')
+   uniclip.setup()
+
+EOF
+mkdir -p ~/.config/uniclip
+
+cat <<-EOF > ~/.config/uniclip/config.yaml
+   # Unique identifier for the group of devices that will share the clipboard
+   group_id: example-group
+   # Full address of the Uniclip server, including protocol and port
+   server_address: http://server.example.com:8037
+   # Set to true to force headless mode (useful for servers without a GUI)
+   headless: false
+EOF
+
+echo Try yanking something with neovim now
+```
+
+
 
 ## Installation
 
@@ -46,20 +92,6 @@ To run Uniclip in server mode:
 
 ```bash
 uniclip server
-```
-
-### Install as a Service
-
-To install Uniclip as a systemd service:
-
-For client:
-```bash
-uniclip install
-```
-
-For server (requires root privileges):
-```bash
-sudo uniclip server install
 ```
 
 ## Configuration
@@ -152,8 +184,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- Thanks to all contributors who have helped shape Uniclip
-- Inspired by the need for seamless clipboard sharing in multi-device environments
+Hi contributor! Your name goes here.
 
 ## Support
 
