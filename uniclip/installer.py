@@ -2,6 +2,7 @@ import os
 import sys
 import platform
 import subprocess
+import shutil
 
 def install_client():
     if platform.system() != 'Linux':
