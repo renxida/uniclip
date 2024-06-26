@@ -66,7 +66,6 @@ After=network.target
 [Service]
 ExecStart={sys.executable} {os.path.abspath(sys.argv[0])} server
 Restart=always
-User=nobody
 
 [Install]
 WantedBy=multi-user.target
