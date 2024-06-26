@@ -17,7 +17,6 @@ After=network.target
 [Service]
 ExecStart={sys.executable} {os.path.abspath(sys.argv[0])} client
 Restart=always
-User={os.getlogin()}
 
 [Install]
 WantedBy=default.target
