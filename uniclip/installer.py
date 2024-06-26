@@ -32,8 +32,8 @@ WantedBy=default.target
     # Copy example config file
     config_dir = os.path.expanduser('~/.config/uniclip')
     os.makedirs(config_dir, exist_ok=True)
-    example_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.yml')
-    config_path = os.path.join(config_dir, 'config.yml')
+    example_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.yaml')
+    config_path = os.path.join(config_dir, 'config.yaml')
     
     if not os.path.exists(config_path):
         shutil.copy2(example_config_path, config_path)
