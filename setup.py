@@ -1,11 +1,22 @@
+import re
 from setuptools import setup, find_packages
 
+# Read the contents of your README file
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+# Get version from __init__.py
+def get_version():
+    with open('uniclip/__init__.py', 'r') as f:
+        content = f.read()
+    match = re.search(r"__version__\s*=\s*['\"]([^'\"]*)['\"]", content)
+    if match:
+        return match.group(1)
+    raise RuntimeError("Unable to find version string.")
+
 setup(
     name="uniclip",
-    version="0.1.0",
+    version=get_version(),
     author="Cedar Ren",
     author_email="cedar.ren@gmail.com",
     description="A clipboard synchronization tool",
