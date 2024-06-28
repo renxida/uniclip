@@ -28,18 +28,25 @@ jobs:
 
     - name: Determine nightly version
       id: version
+      env:
+        GITHUB_RUN_NUMBER: ${{ github.run_number }}
       run: |
         current_version=$(python -c "
-        import re
-        with open('uniclip/__init__.py', 'r') as f:
-            content = f.read()
-        match = re.search(r\"__version__\s*=\s*['\\\"]([^'\\\"]*)['\\\"]\", content)
-        if match:
-            print(match.group(1))
-        else:
-            print('0.0.0')  # fallback version
+import re
+with open('uniclip/__init__.py', 'r') as f:
+    content = f.read()
+match = re.search(r\"__version__\s*=\s*['\\\"]([^'\\\"]*)['\\\"]\", content)
+if match:
+    print(match.group(1))
+else:
+    print('0.0.0')  # fallback version
         ")
-        nightly_version=$(python -c "import semver; v = semver.VersionInfo.parse('$current_version'); print(f'{v.major}.{v.minor}.{v.patch}-nightly.{github.run_number}')")
+        nightly_version=$(python -c "
+import semver
+import os
+v = semver.VersionInfo.parse('$current_version')
+print(f'{v.major}.{v.minor}.{v.patch}-nightly.{os.environ['GITHUB_RUN_NUMBER']}')
+        ")
         echo "nightly_version=$nightly_version" >> "$GITHUB_OUTPUT"
 
     - name: Create Nightly Release
