@@ -1,0 +1,54 @@
+# File: .github/workflows/nightly-release.yml
+
+name: Nightly Release
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  create-nightly:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install semver
+
+    - name: Determine nightly version
+      id: version
+      run: |
+        current_version=$(python -c "
+        import re
+        with open('uniclip/__init__.py', 'r') as f:
+            content = f.read()
+        match = re.search(r\"__version__\s*=\s*['\\\"]([^'\\\"]*)['\\\"]\", content)
+        if match:
+            print(match.group(1))
+        else:
+            print('0.0.0')  # fallback version
+        ")
+        nightly_version=$(python -c "import semver; v = semver.VersionInfo.parse('$current_version'); print(f'{v.major}.{v.minor}.{v.patch}-nightly.{github.run_number}')")
+        echo "nightly_version=$nightly_version" >> "$GITHUB_OUTPUT"
+
+    - name: Create Nightly Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: nightly-v${{ steps.version.outputs.nightly_version }}
+        release_name: Nightly Release ${{ steps.version.outputs.nightly_version }}
+        draft: false
+        prerelease: true
