@@ -54,8 +54,18 @@ local function make_request(method, url, body)
   return result
 end
 
+-- Hash content
+local function hash_content(content)
+  return vim.fn.sha256(content)
+end
+
+-- Get current timestamp
+local function get_timestamp()
+  return os.time()
+end
+
 -- Send content to server
-function M.send_to_server(content)
+function M.send_to_server(content, timestamp)
   local group_id, server_address = load_config()
   local temp_file = os.tmpname()
   
@@ -64,7 +74,12 @@ function M.send_to_server(content)
     log_error("Failed to create temporary file")
     return
   end
-  f:write(content)
+  f:write(vim.fn.json_encode({
+    group_id = group_id,
+    client_id = "neovim-client",
+    content = content,
+    timestamp = timestamp
+  }))
   f:close()
 
   local curl_command = string.format(
@@ -88,34 +103,40 @@ function M.send_to_server(content)
 end
 
 -- Receive content from server
-function M.receive_from_server()
+function M.receive_from_server(content_hash, timestamp)
   local group_id, server_address = load_config()
-  local response = make_request("GET", server_address .. "/poll/" .. group_id .. "/neovim-client")
+  local url = string.format("%s/poll/%s/neovim-client?hash=%s&timestamp=%d", server_address, group_id, content_hash, timestamp)
+  local response = make_request("GET", url)
   local success, data = pcall(vim.fn.json_decode, response)
   if not success then
     log_error("Failed to decode server response: " .. response)
     return nil
   end
-  return data and data.content
+  return data
 end
 
 -- Clipboard sync functions
 
 local last_clipboard = ""
+local last_timestamp = 0
 local current_backoff = poll_interval
 
 -- Update clipboard with exponential backoff
 local function update_clipboard()
-  local content = M.receive_from_server()
-  if content then
-    if content ~= last_clipboard then
-      vim.fn.setreg('"', content)
-      last_clipboard = content
+  local content_hash = hash_content(last_clipboard)
+  local data = M.receive_from_server(content_hash, last_timestamp)
+  if data then
+    if data.status == "update_needed" then
+      if data.content ~= last_clipboard then
+        vim.fn.setreg('"', data.content)
+        last_clipboard = data.content
+        last_timestamp = data.timestamp
+      end
     end
     current_backoff = poll_interval -- Reset backoff on successful poll
   else
     log_error("Failed to receive update from server. Retrying in " .. current_backoff / 1000 .. " seconds.")
-    current_backoff = math.min(current_backoff * 4, max_backoff) -- Exponential backoff with a factor of 4
+    current_backoff = math.min(current_backoff * 2, max_backoff) -- Exponential backoff
   end
 end
 
@@ -136,16 +157,20 @@ function M.setup()
     group = vim.api.nvim_create_augroup("Uniclip", { clear = true }),
     callback = function()
       local yanked_text = table.concat(vim.v.event.regcontents, "\n")
-      M.send_to_server(yanked_text)
+      local timestamp = get_timestamp()
+      M.send_to_server(yanked_text, timestamp)
       last_clipboard = yanked_text
+      last_timestamp = timestamp
     end,
   })
 
   vim.keymap.set('n', 'p', function()
-    local content = M.receive_from_server()
-    if content and content ~= last_clipboard then
-      vim.fn.setreg('"', content)
-      last_clipboard = content
+    local content_hash = hash_content(last_clipboard)
+    local data = M.receive_from_server(content_hash, last_timestamp)
+    if data and data.status == "update_needed" and data.content ~= last_clipboard then
+      vim.fn.setreg('"', data.content)
+      last_clipboard = data.content
+      last_timestamp = data.timestamp
     end
     return 'p'
   end, { expr = true })
@@ -156,19 +181,24 @@ end
 -- Function to check Uniclip status
 function M.check_status()
   local group_id, server_address = load_config()
-  local response = make_request("GET", server_address .. "/poll/" .. group_id .. "/neovim-client")
+  local content_hash = hash_content(last_clipboard)
+  local response = make_request("GET", string.format("%s/poll/%s/neovim-client?hash=%s&timestamp=%d", server_address, group_id, content_hash, last_timestamp))
   local success, data = pcall(vim.fn.json_decode, response)
   if success and data then
     print("Uniclip server is running and reachable.")
     print("Server address: " .. server_address)
     print("Group ID: " .. group_id)
     print("Current backoff: " .. current_backoff / 1000 .. " seconds")
-    print("Last received content: " .. vim.inspect(data.content))
+    print("Last clipboard content hash: " .. content_hash)
+    print("Last clipboard timestamp: " .. os.date("%Y-%m-%d %H:%M:%S", last_timestamp))
+    print("Server response: " .. vim.inspect(data))
   else
     print("Unable to reach Uniclip server or server is not responding correctly.")
     print("Server address: " .. server_address)
     print("Group ID: " .. group_id)
     print("Current backoff: " .. current_backoff / 1000 .. " seconds")
+    print("Last clipboard content hash: " .. content_hash)
+    print("Last clipboard timestamp: " .. os.date("%Y-%m-%d %H:%M:%S", last_timestamp))
     print("Server response: " .. vim.inspect(response))
   end
 end
