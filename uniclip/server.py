@@ -1,7 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 from waitress import serve
 import uvicorn
+import sqlite3
+from datetime import datetime
 
 class RegisterData(BaseModel):
     group_id: str
@@ -11,9 +13,7 @@ class UpdateData(BaseModel):
     group_id: str
     client_id: str
     content: str
-
-import sqlite3
-from datetime import datetime
+    timestamp: int
 
 class DatabaseManager:
     def __init__(self, db_name='uniclip.db'):
@@ -30,34 +30,32 @@ class DatabaseManager:
                 group_id TEXT,
                 content TEXT,
                 client_id TEXT,
-                timestamp DATETIME
+                timestamp INTEGER
             )
         ''')
         self.conn.commit()
 
-    def record_message(self, group_id, content, client_id):
+    def record_message(self, group_id, content, client_id, timestamp):
         self.cursor.execute('''
             INSERT INTO messages (group_id, content, client_id, timestamp)
             VALUES (?, ?, ?, ?)
-        ''', (group_id, content, client_id, datetime.now()))
+        ''', (group_id, content, client_id, timestamp))
         self.conn.commit()
 
-    def get_messages(self, group_id, limit=10):
+    def get_latest_message(self, group_id):
         self.cursor.execute('''
             SELECT * FROM messages
             WHERE group_id = ?
             ORDER BY timestamp DESC
-            LIMIT ?
-        ''', (group_id, limit))
-        return self.cursor.fetchall()
-
+            LIMIT 1
+        ''', (group_id,))
+        return self.cursor.fetchone()
 
 class Server:
     def __init__(self, logger):
         self.logger = logger
         self.db_manager = DatabaseManager()
         self.clients = {}
-        self.pending_updates = {}
         self.app = FastAPI()
         self.setup_routes()
         self.logger.info("Server initialized")
@@ -90,40 +88,29 @@ class Server:
         group_id = data.group_id
         client_id = data.client_id
         content = data.content
+        timestamp = data.timestamp
         
         self.logger.debug(f"Received update request from {client_id} for group: {group_id}")
-        self.db_manager.record_message(group_id, content, client_id)
+        self.db_manager.record_message(group_id, content, client_id, timestamp)
         self.logger.info(f"Message received from {client_id} in group {group_id}")
-        self.logger.debug(f"Message content: {content[:50]}...") # Log first 50 characters of content
+        self.logger.debug(f"Message content: {content[:50]}... Timestamp: {timestamp}")
         
-        if group_id in self.clients:
-            self.logger.debug(f"Processing update for clients in group {group_id}")
-            for client in self.clients[group_id]:
-                if client != client_id:
-                    if group_id not in self.pending_updates:
-                        self.pending_updates[group_id] = {}
-                    self.pending_updates[group_id][client] = content
-                    self.logger.debug(f"Queued update for client: {client}")
-        else:
-            self.logger.warning(f"Received update for non-existent group: {group_id}")
-        
-        self.logger.debug(f"Current pending updates: {self.pending_updates}")
         return {"status": "updated"}
 
-    async def handle_poll(self, group_id: str, client_id: str):
+    async def handle_poll(self, group_id: str, client_id: str, hash: str = Query(...), timestamp: int = Query(...)):
         self.logger.debug(f"Received poll request from {client_id} for group: {group_id}")
         
-        if group_id in self.pending_updates and client_id in self.pending_updates[group_id]:
-            content = self.pending_updates[group_id].pop(client_id)
-            self.logger.info(f"Sending update to client {client_id} in group {group_id}")
-            self.logger.debug(f"Update content: {content[:50]}...") # Log first 50 characters of content
-            if not self.pending_updates[group_id]:
-                del self.pending_updates[group_id]
-                self.logger.debug(f"Removed empty pending updates for group: {group_id}")
-            return {"content": content}
-        else:
-            self.logger.debug(f"No pending updates for client {client_id} in group {group_id}")
-            return {"content": None}
+        latest_message = self.db_manager.get_latest_message(group_id)
+        
+        if latest_message:
+            _, _, content, _, server_timestamp = latest_message
+            if server_timestamp > timestamp:
+                self.logger.info(f"Sending update to client {client_id} in group {group_id}")
+                self.logger.debug(f"Update content: {content[:50]}... Timestamp: {server_timestamp}")
+                return {"status": "update_needed", "content": content, "timestamp": server_timestamp}
+        
+        self.logger.debug(f"No update needed for client {client_id} in group {group_id}")
+        return {"status": "no_update"}
 
 def create_server(logger):
     return Server(logger)
