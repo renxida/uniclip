@@ -26,16 +26,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install semver
 
+    # Determine the current release version and create the nightly version
     - name: Determine nightly version
       id: version
       run: |
+        # Get the current version from __init__.py
         current_version=$(grep -oP "__version__\s*=\s*['\"]?\K[^'\"']+" uniclip/__init__.py || echo "0.0.0")
-        IFS='.' read -r major minor patch <<< "$current_version"
-        prerelease=$(echo "$patch" | grep -oP '[-+].*$' || echo "")
-        patch=$(echo "$patch" | grep -oP '^\d+' || echo "0")
-        nightly_version="${major}.${minor}.${patch}-nightly.${GITHUB_RUN_NUMBER}${prerelease}"
-        echo "nightly_version=$nightly_version" >> "$GITHUB_OUTPUT"
         echo "Current version: $current_version"
+        
+        # Create the nightly version: current_version+nightly.GITHUB_RUN_NUMBER
+        nightly_version="${current_version}+nightly.${GITHUB_RUN_NUMBER}"
+        echo "nightly_version=$nightly_version" >> "$GITHUB_OUTPUT"
         echo "Nightly version: $nightly_version"
 
     - name: Create Nightly Release
