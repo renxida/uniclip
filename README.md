@@ -2,7 +2,7 @@
 
 Uniclip is a clipboard synchronization tool that allows you to share clipboard content across multiple devices within a group. It provides an easy way to keep your clipboard in sync across different machines, making it perfect for users who frequently work with multiple computers or collaborate in teams.
 
-Current version: 0.1.3
+Current version: 0.2.0
 
 > :warning: **Security Warning**: The server has access to all the clipboard data you ever send to it. Make sure you trust the server. Also, all connections are currently unencrypted. Please be aware of these security implications.
 
